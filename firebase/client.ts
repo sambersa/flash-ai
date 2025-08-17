@@ -4,17 +4,17 @@ import { getFirestore } from "firebase/firestore";
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDb7-j74FbeoFATIkyWvaajdxSQnUih2X0",
-  authDomain: "flash-ai-8ae45.firebaseapp.com",
-  projectId: "flash-ai-8ae45",
-  storageBucket: "flash-ai-8ae45.firebasestorage.app",
-  messagingSenderId: "889933690964",
-  appId: "1:889933690964:web:5f7d3af4749fe92d38d5c1",
-  measurementId: "G-B3G8MRKFK4"
+  apiKey: "AIzaSyAk3RjJ1IOG6l9CwaXiwYDL7p_ota5yOrY",
+  authDomain: "flash-ai-55022.firebaseapp.com",
+  projectId: "flash-ai-55022",
+  storageBucket: "flash-ai-55022.firebasestorage.app",
+  messagingSenderId: "1005252305928",
+  appId: "1:1005252305928:web:c28bff1debcbc087d89dbd",
+  measurementId: "G-6QEB7H8QP9"
 };
 
 // Initialize Firebase
-const app = !getApps.length ? initializeApp(firebaseConfig) :getApp();
+const app = !getApps.length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
