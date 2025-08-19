@@ -45,7 +45,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const [vapiInstance, setVapiInstance] = useState<any>(null)
   const [interviewId, setInterviewId] = useState<string | null>(null) // ADD THIS
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  
+
   const [answers, setAnswers] = useState({
     role: "",
     type: "",
@@ -67,7 +67,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const makeAPICall = async (answersData: typeof answers) => {
     try {
       console.log('Making API call with data:', answersData)
-      
+
       const response = await fetch('/api/vapi/generate', {
         method: 'POST',
         headers: {
@@ -89,7 +89,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
 
       const result = await response.json()
       console.log('API call successful:', result)
-      
+
       // CAPTURE THE INTERVIEW ID FROM THE RESPONSE
       if (result.success && result.interviewId) {
         console.log('Setting interview ID:', result.interviewId)
@@ -97,12 +97,12 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       } else {
         console.error('No interview ID in response:', result)
       }
-      
+
       if (vapiInstance) {
         await vapiInstance.stop()
         setCallStatus(CallStatus.FINISHED)
       }
-      
+
     } catch (error) {
       console.error('API call failed:', error)
     }
@@ -111,22 +111,22 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const processUserAnswer = (answer: string) => {
     if (currentQuestionIndex < QUESTION_ORDER.length) {
       const questionKey = QUESTION_ORDER[currentQuestionIndex] as keyof typeof answers
-      
+
       setAnswers(prev => ({
         ...prev,
         [questionKey]: answer
       }))
-      
+
       setUserAnswers(prev => [...prev, answer])
       setCurrentQuestionIndex(prev => prev + 1)
-      
+
       if (currentQuestionIndex + 1 >= QUESTION_ORDER.length) {
         const finalAnswers = {
           ...answers,
           [questionKey]: answer
         }
         console.log('All questions answered:', finalAnswers)
-        
+
         setTimeout(() => {
           makeAPICall(finalAnswers)
         }, 2000)
@@ -163,7 +163,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         setUserAnswers([])
         setInterviewId(null) // Reset interview ID
       }
-      
+
       const onCallEnd = () => {
         console.log('Call ended')
         setCallStatus(CallStatus.FINISHED)
@@ -186,7 +186,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
             setMessages((prevMessages) => [...prevMessages, newMessage])
             setCurrentTranscript("")
             setCurrentSpeaker(null)
-            
+
             if (message.role === "user" && message.transcript) {
               processUserAnswer(message.transcript)
             }
@@ -198,7 +198,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         console.log('Speech started')
         setIsSpeaking(true)
       }
-      
+
       const onSpeechEnd = () => {
         console.log('Speech ended')
         setIsSpeaking(false)
@@ -250,7 +250,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     initializeVapi()
   }, [])
 
-  // UPDATED NAVIGATION LOGIC
+  // You can remove this entire useEffect if using the second approach
   useEffect(() => {
     if (callStatus === CallStatus.FINISHED) {
       console.log('Call finished, interview ID:', interviewId)
@@ -264,73 +264,73 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         }
       }, 3000)
     }
-  }, [callStatus, router, interviewId]) // Added interviewId to dependencies
+  }, [callStatus, router, interviewId])
 
-// EMERGENCY FIX: Replace your handleCall function with this
-const handleCall = async () => {
-  // HARDCODED VALUES AS FALLBACK (temporary fix)
-  const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID || "6595dd69-a7a1-4034-a926-a8d8ecb6d08a"
-  const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "fd07d3b3-0b58-4789-8120-2885e5adc4a9"
-  
-  console.log('🐛 Pre-call debug:')
-  console.log('- Workflow ID:', workflowId)
-  console.log('- Assistant ID:', assistantId)
-  console.log('- Type:', type)
-  
-  if (type === "generate" && !workflowId) {
-    console.error('❌ WORKFLOW_ID is missing!')
-    alert('Environment variable NEXT_PUBLIC_VAPI_WORKFLOW_ID is not set!')
-    return
-  }
-  
-  if (type !== "generate" && !assistantId) {
-    console.error('❌ ASSISTANT_ID is missing!')
-    alert('Environment variable NEXT_PUBLIC_VAPI_ASSISTANT_ID is not set!')
-    return
-  }
+  // EMERGENCY FIX: Replace your handleCall function with this
+  const handleCall = async () => {
+    // HARDCODED VALUES AS FALLBACK (temporary fix)
+    const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID || "6595dd69-a7a1-4034-a926-a8d8ecb6d08a"
+    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "fd07d3b3-0b58-4789-8120-2885e5adc4a9"
 
-  setCallStatus(CallStatus.CONNECTING)
-  
-  try {
-    // Stop any existing call first
-    await vapi.stop()
-  } catch (error) {
-    // Ignore stop errors
-  }
-  
-  console.log('Starting VAPI call with config:', {
-    type,
-    workflowId,
-    assistantId,
-    userName,
-    userId
-  })
-  
-  try {
-    if (type === "generate") {
-      console.log('Starting workflow call with ID:', workflowId)
-      // Use the same pattern as the working code
-      await vapi.start(workflowId, {
-        variableValues: {
-          username: userName,
-          userid: userId,
-        },
-      })
-    } else {
-      console.log('Starting assistant call with ID:', assistantId)
-      await vapi.start(assistantId, {
-        variableValues: {
-          username: userName,
-          userid: userId,
-        },
-      })
+    console.log('🐛 Pre-call debug:')
+    console.log('- Workflow ID:', workflowId)
+    console.log('- Assistant ID:', assistantId)
+    console.log('- Type:', type)
+
+    if (type === "generate" && !workflowId) {
+      console.error('❌ WORKFLOW_ID is missing!')
+      alert('Environment variable NEXT_PUBLIC_VAPI_WORKFLOW_ID is not set!')
+      return
     }
-    console.log('VAPI start call completed')
-  } catch (error) {
-    console.error('Call failed:', error)
-    setCallStatus(CallStatus.INACTIVE)
+
+    if (type !== "generate" && !assistantId) {
+      console.error('❌ ASSISTANT_ID is missing!')
+      alert('Environment variable NEXT_PUBLIC_VAPI_ASSISTANT_ID is not set!')
+      return
+    }
+
+    setCallStatus(CallStatus.CONNECTING)
+
+    try {
+      // Stop any existing call first
+      await vapi.stop()
+    } catch (error) {
+      // Ignore stop errors
+    }
+
+    console.log('Starting VAPI call with config:', {
+      type,
+      workflowId,
+      assistantId,
+      userName,
+      userId
+    })
+
+    try {
+      if (type === "generate") {
+        console.log('Starting workflow call with ID:', workflowId)
+        // Use the same pattern as the working code
+        await vapi.start(workflowId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        })
+      } else {
+        console.log('Starting assistant call with ID:', assistantId)
+        await vapi.start(assistantId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        })
+      }
+      console.log('VAPI start call completed')
+    } catch (error) {
+      console.error('Call failed:', error)
+      setCallStatus(CallStatus.INACTIVE)
+    }
   }
-}
 
   const handleDisconnect = async () => {
     if (!vapiInstance) return
