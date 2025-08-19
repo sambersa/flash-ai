@@ -1,49 +1,97 @@
-import { db } from '@/firebase/admin';
-import { getRandomInterviewCover } from '@/lib/utils';
-import { google } from '@ai-sdk/google'
-import { generateText } from 'ai'  // <-- add this import
-
-export async function GET() {
-    return Response.json({ success: true, data: 'THANK YOU' }, { status: 200 });
-}
+import { generateText } from "ai";
+import { google } from "@ai-sdk/google";
+import { db } from "@/firebase/admin";
+import { getRandomInterviewCover } from "@/lib/utils";
 
 export async function POST(request: Request) {
     const { type, role, level, techstack, amount, userid } = await request.json();
 
+    // Log incoming request for debugging
+    console.log("POST /api/vapi/generate request body:", {
+        type,
+        role,
+        level,
+        techstack,
+        techstackType: typeof techstack,
+        amount,
+        userid,
+    });
+
+    // Validate inputs
+    if (!type || !role || !level || !amount) {
+        return Response.json(
+            { success: false, error: "Missing required fields" },
+            { status: 400 }
+        );
+    }
+
     try {
         const { text: questions } = await generateText({
-            model: google('gemini-2.0-flash-001'),
-            prompt: `Prepare your questions for the job interview.
-        The job role is ${role}
-        The job experience is ${level}
-        The tech stack used in the job is: ${techstack}
-        The focus between behavioural and technical questions should lean towards: ${type}
-        The amount of questions required is: ${amount}
-        Please return only the questions, without any additional text.
-        The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters
-        which might break the voice Assistant.
-        Return the questions formatted like this:
-        ["Question 1", "Question 2", "Question 3"]`
-        })
+            model: google("gemini-2.0-flash-001"),
+            prompt: `Prepare questions for a job interview.
+The job role is ${role}.
+The job experience level is ${level}.
+The tech stack used in the job is: ${techstack}.
+The focus between behavioural and technical questions should lean towards: ${type}.
+The amount of questions required is: ${amount}.
+Please return only the questions, without any additional text.
+The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters which might break the voice assistant.
+Return the questions formatted like this:
+["Question 1", "Question 2", "Question 3"]
 
-        const interview = {
+Thank you! <3`,
+        });
+
+        // Safely parse techstack as an array of strings
+        const techstackArray = (() => {
+            if (Array.isArray(techstack)) {
+                return techstack.map(t => String(t).trim()).filter(t => t);
+            }
+            if (typeof techstack === "string" && techstack.trim()) {
+                return techstack.split(",").map(t => t.trim()).filter(t => t);
+            }
+            console.warn("Invalid techstack value:", techstack, "Type:", typeof techstack);
+            return [];
+        })();
+
+        // Safely parse questions JSON
+        let parsedQuestions: string[] = [];
+        try {
+            parsedQuestions = JSON.parse(questions);
+            if (!Array.isArray(parsedQuestions)) parsedQuestions = [];
+        } catch (err) {
+            console.error("Failed to parse AI questions:", questions, err);
+        }
+
+        const interview: any = {
             role,
             type,
             level,
-            techstack: techstack.split(','),
-            questions: JSON.parse(questions),
-            userId: userid,
+            techstack: techstackArray,
+            questions: parsedQuestions,
             finalized: true,
             coverImage: getRandomInterviewCover(),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+        };
+
+        if (userid !== undefined) {
+            interview.userId = userid ?? null;
         }
 
-        await db.collection('interviews').add(interview);
+        console.log("Interview object to save:", interview);
+
+        await db.collection("interviews").add(interview);
 
         return Response.json({ success: true }, { status: 200 });
-    } catch (error) {
-        console.error(error);
-
-        return Response.json({ success: false, error }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in POST /api/vapi/generate:", error);
+        return Response.json(
+            { success: false, error: error.message || String(error) },
+            { status: 500 }
+        );
     }
+}
+
+export async function GET() {
+    return Response.json({ success: true, data: "Thank you!" }, { status: 200 });
 }
