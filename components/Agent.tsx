@@ -266,60 +266,71 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     }
   }, [callStatus, router, interviewId]) // Added interviewId to dependencies
 
-  const handleCall = async () => {
-    if (!vapiInstance) {
-      console.error('Vapi instance not initialized')
-      return
-    }
-
-    try {
-      await vapiInstance.stop()
-    } catch {}
-
-    setCallStatus(CallStatus.CONNECTING)
-    
-    // Enhanced logging for debugging
-    console.log('Starting VAPI call with config:', {
-      type,
-      workflowId: process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID,
-      assistantId: process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID,
-      userName,
-      userId
-    })
-    
-    try {
-      if (type === "generate") {
-        console.log('Starting workflow call with ID:', process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID)
-        await vapiInstance.start(
-          undefined, // assistant
-          undefined, // assistantOverrides  
-          undefined, // squad
-          process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, // workflow
-          { // workflowOverrides
-            variableValues: {
-              username: userName,
-              userid: userId,
-            },
-          }
-        )
-      } else {
-        console.log('Starting assistant call with ID:', process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID)
-        await vapiInstance.start(
-          process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID!, // assistant
-          { // assistantOverrides
-            variableValues: {
-              username: userName,
-              userid: userId,
-            },
-          }
-        )
-      }
-      console.log('VAPI start call completed')
-    } catch (error) {
-      console.error('Call failed:', error)
-      setCallStatus(CallStatus.INACTIVE)
-    }
+// EMERGENCY FIX: Replace your handleCall function with this
+const handleCall = async () => {
+  // HARDCODED VALUES AS FALLBACK (temporary fix)
+  const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID || "6595dd69-a7a1-4034-a926-a8d8ecb6d08a"
+  const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "fd07d3b3-0b58-4789-8120-2885e5adc4a9"
+  
+  console.log('🐛 Pre-call debug:')
+  console.log('- Workflow ID:', workflowId)
+  console.log('- Assistant ID:', assistantId)
+  console.log('- Type:', type)
+  
+  if (type === "generate" && !workflowId) {
+    console.error('❌ WORKFLOW_ID is missing!')
+    alert('Environment variable NEXT_PUBLIC_VAPI_WORKFLOW_ID is not set!')
+    return
   }
+  
+  if (type !== "generate" && !assistantId) {
+    console.error('❌ ASSISTANT_ID is missing!')
+    alert('Environment variable NEXT_PUBLIC_VAPI_ASSISTANT_ID is not set!')
+    return
+  }
+
+  setCallStatus(CallStatus.CONNECTING)
+  
+  try {
+    // Stop any existing call first
+    await vapi.stop()
+  } catch (error) {
+    // Ignore stop errors
+  }
+  
+  console.log('Starting VAPI call with config:', {
+    type,
+    workflowId,
+    assistantId,
+    userName,
+    userId
+  })
+  
+  try {
+    if (type === "generate") {
+      console.log('Starting workflow call with ID:', workflowId)
+      // Use the same pattern as the working code
+      await vapi.start(workflowId, {
+        variableValues: {
+          username: userName,
+          userid: userId,
+        },
+      })
+    } else {
+      console.log('Starting assistant call with ID:', assistantId)
+      await vapi.start(assistantId, {
+        variableValues: {
+          username: userName,
+          userid: userId,
+        },
+      })
+    }
+    console.log('VAPI start call completed')
+  } catch (error) {
+    console.error('Call failed:', error)
+    setCallStatus(CallStatus.INACTIVE)
+  }
+}
 
   const handleDisconnect = async () => {
     if (!vapiInstance) return
