@@ -68,7 +68,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     try {
       console.log('Making API call with data:', answersData)
       
-      const response = await fetch('https://flash-eg1xo2r8n-sambersas-projects.vercel.app/api/vapi/generate', {
+      const response = await fetch('/api/vapi/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
