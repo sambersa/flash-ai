@@ -43,6 +43,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const [currentTranscript, setCurrentTranscript] = useState<string>("")
   const [currentSpeaker, setCurrentSpeaker] = useState<"user" | "assistant" | null>(null)
   const [vapiInstance, setVapiInstance] = useState<any>(null)
+  const [interviewId, setInterviewId] = useState<string | null>(null) // ADD THIS
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   const [answers, setAnswers] = useState({
@@ -88,6 +89,14 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
 
       const result = await response.json()
       console.log('API call successful:', result)
+      
+      // CAPTURE THE INTERVIEW ID FROM THE RESPONSE
+      if (result.success && result.interviewId) {
+        console.log('Setting interview ID:', result.interviewId)
+        setInterviewId(result.interviewId)
+      } else {
+        console.error('No interview ID in response:', result)
+      }
       
       if (vapiInstance) {
         await vapiInstance.stop()
@@ -138,6 +147,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       setVapiInstance(instance)
 
       const onCallStart = () => {
+        console.log('Call started')
         setCallStatus(CallStatus.ACTIVE)
         setMessages([])
         setCurrentTranscript("")
@@ -151,15 +161,18 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         })
         setCurrentQuestionIndex(0)
         setUserAnswers([])
+        setInterviewId(null) // Reset interview ID
       }
       
       const onCallEnd = () => {
+        console.log('Call ended')
         setCallStatus(CallStatus.FINISHED)
         setCurrentTranscript("")
         setCurrentSpeaker(null)
       }
 
       const onMessage = (message: Message) => {
+        console.log('VAPI Message received:', message)
         if (message.type === "transcript") {
           if (message.transcriptType === "partial") {
             setCurrentTranscript(message.transcript || "")
@@ -181,8 +194,15 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         }
       }
 
-      const onSpeechStart = () => setIsSpeaking(true)
-      const onSpeechEnd = () => setIsSpeaking(false)
+      const onSpeechStart = () => {
+        console.log('Speech started')
+        setIsSpeaking(true)
+      }
+      
+      const onSpeechEnd = () => {
+        console.log('Speech ended')
+        setIsSpeaking(false)
+      }
 
       const onError = (error: Error) => {
         console.error("VAPI Error:", error)
@@ -191,12 +211,28 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         setCurrentSpeaker(null)
       }
 
+      // Add more VAPI event listeners for debugging
+      const onCallStartProgress = (event: any) => {
+        console.log('Call start progress:', event)
+      }
+
+      const onCallStartSuccess = (event: any) => {
+        console.log('Call start success:', event)
+      }
+
+      const onCallStartFailed = (event: any) => {
+        console.error('Call start failed:', event)
+      }
+
       instance.on("call-start", onCallStart)
       instance.on("call-end", onCallEnd)
       instance.on("message", onMessage)
       instance.on("speech-start", onSpeechStart)
       instance.on("speech-end", onSpeechEnd)
       instance.on("error", onError)
+      instance.on("call-start-progress", onCallStartProgress)
+      instance.on("call-start-success", onCallStartSuccess)
+      instance.on("call-start-failed", onCallStartFailed)
 
       return () => {
         instance.off("call-start", onCallStart)
@@ -205,19 +241,30 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         instance.off("speech-start", onSpeechStart)
         instance.off("speech-end", onSpeechEnd)
         instance.off("error", onError)
+        instance.off("call-start-progress", onCallStartProgress)
+        instance.off("call-start-success", onCallStartSuccess)
+        instance.off("call-start-failed", onCallStartFailed)
       }
     }
 
     initializeVapi()
   }, [])
 
+  // UPDATED NAVIGATION LOGIC
   useEffect(() => {
     if (callStatus === CallStatus.FINISHED) {
+      console.log('Call finished, interview ID:', interviewId)
       setTimeout(() => {
-        router.push("/")
+        if (interviewId) {
+          console.log('Navigating to interview:', `/interview/${interviewId}`)
+          router.push(`/interview/${interviewId}`)
+        } else {
+          console.log('No interview ID, redirecting to home')
+          router.push("/")
+        }
       }, 3000)
     }
-  }, [callStatus, router])
+  }, [callStatus, router, interviewId]) // Added interviewId to dependencies
 
   const handleCall = async () => {
     if (!vapiInstance) {
@@ -231,14 +278,24 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
 
     setCallStatus(CallStatus.CONNECTING)
     
+    // Enhanced logging for debugging
+    console.log('Starting VAPI call with config:', {
+      type,
+      workflowId: process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID,
+      assistantId: process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID,
+      userName,
+      userId
+    })
+    
     try {
       if (type === "generate") {
+        console.log('Starting workflow call with ID:', process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID)
         await vapiInstance.start(
-          undefined,
-          undefined,
-          undefined,
-          process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
-          {
+          undefined, // assistant
+          undefined, // assistantOverrides  
+          undefined, // squad
+          process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, // workflow
+          { // workflowOverrides
             variableValues: {
               username: userName,
               userid: userId,
@@ -246,9 +303,10 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
           }
         )
       } else {
+        console.log('Starting assistant call with ID:', process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID)
         await vapiInstance.start(
-          process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID!,
-          {
+          process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID!, // assistant
+          { // assistantOverrides
             variableValues: {
               username: userName,
               userid: userId,
@@ -256,6 +314,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
           }
         )
       }
+      console.log('VAPI start call completed')
     } catch (error) {
       console.error('Call failed:', error)
       setCallStatus(CallStatus.INACTIVE)
@@ -324,9 +383,18 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       )}
 
       {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-4 right-4 bg-black/80 text-white p-2 rounded text-xs">
+        <div className="fixed top-4 right-4 bg-black/80 text-white p-2 rounded text-xs max-w-xs">
+          <div>Status: {callStatus}</div>
           <div>Question: {currentQuestionIndex + 1}/5</div>
-          <div>Answers: {JSON.stringify(answers, null, 2)}</div>
+          <div>Interview ID: {interviewId || 'Not set'}</div>
+          <div>Type: {type}</div>
+          <div className="mt-2 text-xs">
+            <div>Workflow ID: {process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID}</div>
+            <div>Assistant ID: {process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID}</div>
+          </div>
+          <div className="mt-1 max-h-20 overflow-auto">
+            Answers: {JSON.stringify(answers, null, 1)}
+          </div>
         </div>
       )}
 

@@ -80,11 +80,15 @@ Thank you! <3`,
 
         console.log("Interview object to save:", interview);
 
-        // To this:
+        // THIS IS THE CRITICAL FIX - Save to database and get the document reference
         const docRef = await db.collection("interviews").add(interview);
-        return Response.json({
-            success: true,
-            interviewId: docRef.id
+        
+        console.log("Interview saved with ID:", docRef.id);
+
+        // Return the interview ID in the response
+        return Response.json({ 
+            success: true, 
+            interviewId: docRef.id 
         }, { status: 200 });
 
     } catch (error: any) {
