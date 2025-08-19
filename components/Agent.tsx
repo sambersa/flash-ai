@@ -146,8 +146,9 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       const instance = new Vapi(publicKey)
       setVapiInstance(instance)
 
+      // Replace your event listeners in the useEffect with these enhanced versions:
       const onCallStart = () => {
-        console.log('Call started')
+        console.log('🎉 Call started successfully - transitioning to ACTIVE state')
         setCallStatus(CallStatus.ACTIVE)
         setMessages([])
         setCurrentTranscript("")
@@ -161,7 +162,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         })
         setCurrentQuestionIndex(0)
         setUserAnswers([])
-        setInterviewId(null) // Reset interview ID
+        setInterviewId(null)
       }
 
       const onCallEnd = () => {
@@ -172,7 +173,13 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       }
 
       const onMessage = (message: Message) => {
-        console.log('VAPI Message received:', message)
+        console.log('📩 VAPI Message received:', {
+          type: message.type,
+          role: message.role,
+          transcriptType: message.transcriptType,
+          content: message.transcript?.substring(0, 50) + '...'
+        })
+
         if (message.type === "transcript") {
           if (message.transcriptType === "partial") {
             setCurrentTranscript(message.transcript || "")
@@ -188,6 +195,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
             setCurrentSpeaker(null)
 
             if (message.role === "user" && message.transcript) {
+              console.log('Processing user answer:', message.transcript)
               processUserAnswer(message.transcript)
             }
           }
@@ -195,12 +203,12 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       }
 
       const onSpeechStart = () => {
-        console.log('Speech started')
+        console.log('🎤 Speech started')
         setIsSpeaking(true)
       }
 
       const onSpeechEnd = () => {
-        console.log('Speech ended')
+        console.log('🔇 Speech ended')
         setIsSpeaking(false)
       }
 
@@ -209,19 +217,26 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         setCallStatus(CallStatus.INACTIVE)
         setCurrentTranscript("")
         setCurrentSpeaker(null)
+        alert(`VAPI Error: ${error.message || 'Unknown error occurred'}`)
       }
 
-      // Add more VAPI event listeners for debugging
       const onCallStartProgress = (event: any) => {
-        console.log('Call start progress:', event)
+        console.log('Call progress:', event.stage, event.status)
       }
 
       const onCallStartSuccess = (event: any) => {
-        console.log('Call start success:', event)
+        console.log('Call start success event received:', event)
+        // Sometimes this fires instead of or before call-start
+        if (callStatus === CallStatus.CONNECTING) {
+          console.log('Manually transitioning to ACTIVE from success event')
+          setCallStatus(CallStatus.ACTIVE)
+        }
       }
 
       const onCallStartFailed = (event: any) => {
         console.error('Call start failed:', event)
+        setCallStatus(CallStatus.INACTIVE)
+        alert(`Call failed: ${event.error?.message || 'Unknown error'}`)
       }
 
       instance.on("call-start", onCallStart)
@@ -266,18 +281,11 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     }
   }, [callStatus, router, interviewId])
 
-// Replace your handleCall function with this debugging version:
 const handleCall = async () => {
   const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID || "6595dd69-a7a1-4034-a926-a8d8ecb6d08a"
   const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "fd07d3b3-0b58-4789-8120-2885e5adc4a9"
 
-  // Debug environment variables
-  console.log('Environment Debug:')
-  console.log('- NEXT_PUBLIC_VAPI_WEB_TOKEN exists:', !!process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN)
-  console.log('- Token first 10 chars:', process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN?.substring(0, 10))
-  console.log('- Workflow ID:', workflowId)
-  console.log('- Type:', type)
-
+  console.log('Starting call with Method 2')
   setCallStatus(CallStatus.CONNECTING)
 
   try {
@@ -287,77 +295,52 @@ const handleCall = async () => {
   }
 
   try {
-    console.log('Attempting different workflow call methods...')
-
     if (type === "generate") {
-      // Method 1: Try the basic workflow call
-      console.log('Method 1: Basic workflow call')
-      try {
-        await vapi.start(workflowId, {
-          variableValues: {
-            username: userName,
-            userid: userId,
-          },
-        })
-        console.log('Method 1 SUCCESS')
-        return
-      } catch (error: any) {
-        console.log('Method 1 failed:', error.message)
+      await vapi.start(undefined, undefined, undefined, workflowId, {
+        variableValues: {
+          username: userName,
+          userid: userId,
+        },
+      })
+      
+      console.log('Call initiated successfully')
+      
+      // FALLBACK: If call-start event doesn't fire, transition manually
+      let fallbackTimeout = setTimeout(() => {
+        console.log('FALLBACK: Call-start event did not fire, checking if call is actually active...')
+        if (callStatus === CallStatus.CONNECTING) {
+          console.log('Manually transitioning to ACTIVE state (fallback)')
+          setCallStatus(CallStatus.ACTIVE)
+        }
+      }, 8000) // Wait 8 seconds then assume it's active
+      
+      // Clear the fallback if we get proper events
+      const clearFallback = () => {
+        if (fallbackTimeout) {
+          clearTimeout(fallbackTimeout)
+          fallbackTimeout = null
+        }
       }
-
-      // Method 2: Try passing workflow in the config object
-      console.log('Method 2: Workflow in config object')
-      try {
-        await vapi.start(undefined, undefined, undefined, workflowId, {
-          variableValues: {
-            username: userName,
-            userid: userId,
-          },
-        })
-        console.log('Method 2 SUCCESS')
-        return
-      } catch (error: any) {
-        console.log('Method 2 failed:', error.message)
+      
+      // Listen for any sign the call is active
+      const tempListener = (message: any) => {
+        if (message.type === "transcript" || message.type === "speech-start") {
+          console.log('Call is definitely active (received message/speech), clearing fallback')
+          clearFallback()
+          setCallStatus(CallStatus.ACTIVE)
+        }
       }
-
-      // Method 3: Try with explicit workflow parameter
-      console.log('Method 3: Explicit workflow parameter')
-      try {
-        await vapi.start(
-          undefined, // assistant
-          undefined, // assistantOverrides
-          undefined, // squad
-          workflowId, // workflow
-          { // workflowOverrides
-            variableValues: {
-              username: userName,
-              userid: userId,
-            },
-          }
-        )
-        console.log('Method 3 SUCCESS')
-        return
-      } catch (error: any) {
-        console.log('Method 3 failed:', error.message)
-      }
-
-      // Method 4: Try creating an assistant call instead
-      console.log('Method 4: Fallback to assistant call')
-      try {
-        await vapi.start(assistantId, {
-          variableValues: {
-            username: userName,
-            userid: userId,
-          },
-        })
-        console.log('Method 4 SUCCESS (using assistant instead)')
-        return
-      } catch (error: any) {
-        console.log('Method 4 failed:', error.message)
-      }
-
+      
+      // Add temporary listener
+      vapi.on("message", tempListener)
+      
+      // Clean up after 30 seconds
+      setTimeout(() => {
+        vapi.off("message", tempListener)
+        clearFallback()
+      }, 30000)
+      
     } else {
-      // Regular assistant call
       await vapi.start(assistantId, {
         variableValues: {
           username: userName,
@@ -367,14 +350,9 @@ const handleCall = async () => {
     }
 
   } catch (error: any) {
-    console.error('All methods failed. Final error:', {
-      error,
-      message: error.message,
-      status: error.status,
-      response: error.response
-    })
+    console.error('Call failed:', error)
     setCallStatus(CallStatus.INACTIVE)
-    alert(`All call methods failed. Last error: ${error.message}`)
+    alert(`Call failed: ${error.message}`)
   }
 }
   const handleDisconnect = async () => {
