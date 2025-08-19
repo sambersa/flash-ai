@@ -80,9 +80,13 @@ Thank you! <3`,
 
         console.log("Interview object to save:", interview);
 
-        await db.collection("interviews").add(interview);
+        // To this:
+        const docRef = await db.collection("interviews").add(interview);
+        return Response.json({
+            success: true,
+            interviewId: docRef.id
+        }, { status: 200 });
 
-        return Response.json({ success: true }, { status: 200 });
     } catch (error: any) {
         console.error("Error in POST /api/vapi/generate:", error);
         return Response.json(

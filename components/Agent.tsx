@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
@@ -16,6 +16,7 @@ enum CallStatus {
 interface SavedMessage {
   role: "user" | "system" | "assistant"
   content: string
+  timestamp: number
 }
 
 interface Message {
@@ -25,79 +26,249 @@ interface Message {
   transcript?: string
 }
 
-const Agent = ({ userName, userId, type }: any) => {
+interface AgentProps {
+  userName: string
+  userId: string
+  type: string
+}
+
+// Define the expected order of answers
+const QUESTION_ORDER = ['role', 'type', 'level', 'techstack', 'amount']
+
+const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const router = useRouter()
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE)
   const [messages, setMessages] = useState<SavedMessage[]>([])
+  const [currentTranscript, setCurrentTranscript] = useState<string>("")
+  const [currentSpeaker, setCurrentSpeaker] = useState<"user" | "assistant" | null>(null)
+  const [vapiInstance, setVapiInstance] = useState<any>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  
+  const [answers, setAnswers] = useState({
+    role: "",
+    type: "",
+    level: "",
+    techstack: "",
+    amount: ""
+  })
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [userAnswers, setUserAnswers] = useState<string[]>([])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
 
   useEffect(() => {
-    const onCallStart = () => setCallStatus(CallStatus.ACTIVE)
-    const onCallEnd = () => setCallStatus(CallStatus.FINISHED)
+    scrollToBottom()
+  }, [messages, currentTranscript])
 
-    const onMessage = (message: Message) => {
-      if (message.type === "transcript" && message.transcriptType === "final") {
-        const newMessage: SavedMessage = {
-          role: message.role,
-          content: message.transcript || "",
+  const makeAPICall = async (answersData: typeof answers) => {
+    try {
+      console.log('Making API call with data:', answersData)
+      
+      const response = await fetch('https://flash-rfdvz3j6d-sambersas-projects.vercel.app/api/vapi/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: answersData.role,
+          type: answersData.type,
+          level: answersData.level,
+          techstack: answersData.techstack,
+          amount: answersData.amount,
+          userid: userId
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('API call successful:', result)
+      
+      if (vapiInstance) {
+        await vapiInstance.stop()
+        setCallStatus(CallStatus.FINISHED)
+      }
+      
+    } catch (error) {
+      console.error('API call failed:', error)
+    }
+  }
+
+  const processUserAnswer = (answer: string) => {
+    if (currentQuestionIndex < QUESTION_ORDER.length) {
+      const questionKey = QUESTION_ORDER[currentQuestionIndex] as keyof typeof answers
+      
+      setAnswers(prev => ({
+        ...prev,
+        [questionKey]: answer
+      }))
+      
+      setUserAnswers(prev => [...prev, answer])
+      setCurrentQuestionIndex(prev => prev + 1)
+      
+      if (currentQuestionIndex + 1 >= QUESTION_ORDER.length) {
+        const finalAnswers = {
+          ...answers,
+          [questionKey]: answer
         }
-        setMessages((prevMessages) => [...prevMessages, newMessage])
+        console.log('All questions answered:', finalAnswers)
+        
+        setTimeout(() => {
+          makeAPICall(finalAnswers)
+        }, 2000)
+      }
+    }
+  }
+
+  useEffect(() => {
+    const initializeVapi = async () => {
+      const publicKey = process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN
+      if (!publicKey) {
+        console.error('Missing VAPI public key')
+        return
+      }
+
+      const Vapi = (await import('@vapi-ai/web')).default
+      const instance = new Vapi(publicKey)
+      setVapiInstance(instance)
+
+      const onCallStart = () => {
+        setCallStatus(CallStatus.ACTIVE)
+        setMessages([])
+        setCurrentTranscript("")
+        setCurrentSpeaker(null)
+        setAnswers({
+          role: "",
+          type: "",
+          level: "",
+          techstack: "",
+          amount: ""
+        })
+        setCurrentQuestionIndex(0)
+        setUserAnswers([])
+      }
+      
+      const onCallEnd = () => {
+        setCallStatus(CallStatus.FINISHED)
+        setCurrentTranscript("")
+        setCurrentSpeaker(null)
+      }
+
+      const onMessage = (message: Message) => {
+        if (message.type === "transcript") {
+          if (message.transcriptType === "partial") {
+            setCurrentTranscript(message.transcript || "")
+            setCurrentSpeaker(message.role)
+          } else if (message.transcriptType === "final") {
+            const newMessage: SavedMessage = {
+              role: message.role,
+              content: message.transcript || "",
+              timestamp: Date.now()
+            }
+            setMessages((prevMessages) => [...prevMessages, newMessage])
+            setCurrentTranscript("")
+            setCurrentSpeaker(null)
+            
+            if (message.role === "user" && message.transcript) {
+              processUserAnswer(message.transcript)
+            }
+          }
+        }
+      }
+
+      const onSpeechStart = () => setIsSpeaking(true)
+      const onSpeechEnd = () => setIsSpeaking(false)
+
+      const onError = (error: Error) => {
+        console.error("VAPI Error:", error)
+        setCallStatus(CallStatus.INACTIVE)
+        setCurrentTranscript("")
+        setCurrentSpeaker(null)
+      }
+
+      instance.on("call-start", onCallStart)
+      instance.on("call-end", onCallEnd)
+      instance.on("message", onMessage)
+      instance.on("speech-start", onSpeechStart)
+      instance.on("speech-end", onSpeechEnd)
+      instance.on("error", onError)
+
+      return () => {
+        instance.off("call-start", onCallStart)
+        instance.off("call-end", onCallEnd)
+        instance.off("message", onMessage)
+        instance.off("speech-start", onSpeechStart)
+        instance.off("speech-end", onSpeechEnd)
+        instance.off("error", onError)
       }
     }
 
-    const onSpeechStart = () => setIsSpeaking(true)
-    const onSpeechEnd = () => setIsSpeaking(false)
-
-    const onError = (error: Error) => console.log("Error:", error)
-
-    vapi.on("call-start", onCallStart)
-    vapi.on("call-end", onCallEnd)
-    vapi.on("message", onMessage)
-    vapi.on("speech-start", onSpeechStart)
-    vapi.on("speech-end", onSpeechEnd)
-    vapi.on("error", onError)
-
-    return () => {
-      vapi.off("call-start", onCallStart)
-      vapi.off("call-end", onCallEnd)
-      vapi.off("message", onMessage)
-      vapi.off("speech-start", onSpeechStart)
-      vapi.off("speech-end", onSpeechEnd)
-      vapi.off("error", onError)
-    }
+    initializeVapi()
   }, [])
 
   useEffect(() => {
-    if (callStatus === CallStatus.FINISHED) router.push("/")
-  }, [messages, callStatus, type, userId, router])
+    if (callStatus === CallStatus.FINISHED) {
+      setTimeout(() => {
+        router.push("/")
+      }, 3000)
+    }
+  }, [callStatus, router])
 
   const handleCall = async () => {
+    if (!vapiInstance) {
+      console.error('Vapi instance not initialized')
+      return
+    }
+
+    try {
+      await vapiInstance.stop()
+    } catch {}
+
     setCallStatus(CallStatus.CONNECTING)
-    await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, {
-      variableValues: {
-        username: userName,
-        userid: userId,
-      },
-    })
+    
+    try {
+      if (type === "generate") {
+        await vapiInstance.start(
+          undefined,
+          undefined,
+          undefined,
+          process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
+          {
+            variableValues: {
+              username: userName,
+              userid: userId,
+            },
+          }
+        )
+      } else {
+        await vapiInstance.start(
+          process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID!,
+          {
+            variableValues: {
+              username: userName,
+              userid: userId,
+            },
+          }
+        )
+      }
+    } catch (error) {
+      console.error('Call failed:', error)
+      setCallStatus(CallStatus.INACTIVE)
+    }
   }
 
   const handleDisconnect = async () => {
-    setCallStatus(CallStatus.FINISHED)
-    vapi.stop()
-  }
-
-  const latestMessage = messages[messages.length - 1]?.content
-  const isCallInactiveOrFinished =
-    callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED
-
-  const lastMessage = messages[messages.length - 1]
-
-  const handleCallAction = () => {
-    if (callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED) {
-      setCallStatus(CallStatus.CONNECTING)
-      setTimeout(() => setCallStatus(CallStatus.ACTIVE), 1000)
-    } else if (callStatus === CallStatus.ACTIVE) {
+    if (!vapiInstance) return
+    try {
+      await vapiInstance.stop()
       setCallStatus(CallStatus.FINISHED)
+    } catch (error) {
+      setCallStatus(CallStatus.INACTIVE)
     }
   }
 
@@ -126,31 +297,42 @@ const Agent = ({ userName, userId, type }: any) => {
               width={540}
               height={540}
               className="rounded-full object-cover size-[120px]"
+              priority
             />
             <h3>{userName}</h3>
           </div>
         </div>
       </div>
 
-      {messages.length > 0 && (
+      {callStatus === CallStatus.ACTIVE && (currentTranscript || messages.length > 0) && (
         <div className="transcript-border">
-          <div className="transcript">
-            <p
-              key={messages.length}
-              className={cn(
-                "transition-opacity duration-500 opacity-0",
-                "animate-fadeIn opacity-100"
+          <div className="bg-gray-800 rounded-lg p-4 mx-4 mb-4">
+            <p className="text-white text-center text-sm leading-relaxed">
+              {currentTranscript ? (
+                <>
+                  {currentTranscript}
+                  <span className="animate-pulse ml-1">|</span>
+                </>
+              ) : messages.length > 0 ? (
+                messages[messages.length - 1].content
+              ) : (
+                "Listening..."
               )}
-            >
-              {lastMessage?.content}
             </p>
           </div>
         </div>
       )}
 
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-4 right-4 bg-black/80 text-white p-2 rounded text-xs">
+          <div>Question: {currentQuestionIndex + 1}/5</div>
+          <div>Answers: {JSON.stringify(answers, null, 2)}</div>
+        </div>
+      )}
+
       <div className="w-full flex justify-center">
         {callStatus !== CallStatus.ACTIVE ? (
-          <button onClick={handleCallAction} className="relative btn-call">
+          <button className="relative btn-call" onClick={handleCall}>
             {callStatus === CallStatus.CONNECTING && (
               <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-75"></span>
             )}
@@ -161,7 +343,7 @@ const Agent = ({ userName, userId, type }: any) => {
             </span>
           </button>
         ) : (
-          <button className="btn-disconnect" onClick={handleCallAction}>
+          <button className="btn-disconnect" onClick={handleDisconnect}>
             End Call
           </button>
         )}
