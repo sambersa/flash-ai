@@ -10,7 +10,7 @@ const firebaseConfig = {
   storageBucket: "flash-ai-55022.firebasestorage.app",
   messagingSenderId: "1005252305928",
   appId: "1:1005252305928:web:c28bff1debcbc087d89dbd",
-  measurementId: "G-6QEB7H8QP9"
+  measurementId: "G-6QEB7H8QP9"agent
 };
 
 // Initialize Firebase
