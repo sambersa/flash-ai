@@ -4,13 +4,13 @@ import React, { useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import { vapi } from "@/lib/vapi.sdk"
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
   CONNECTING = "CONNECTING",
   ACTIVE = "ACTIVE",
   FINISHED = "FINISHED",
+  EJECTED = "EJECTED",
 }
 
 interface SavedMessage {
@@ -43,8 +43,10 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const [currentTranscript, setCurrentTranscript] = useState<string>("")
   const [currentSpeaker, setCurrentSpeaker] = useState<"user" | "assistant" | null>(null)
   const [vapiInstance, setVapiInstance] = useState<any>(null)
-  const [interviewId, setInterviewId] = useState<string | null>(null) // ADD THIS
+  const [interviewId, setInterviewId] = useState<string | null>(null)
+  const [lastMessage, setLastMessage] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const redirectExecuted = useRef(false)
 
   const [answers, setAnswers] = useState({
     role: "",
@@ -64,9 +66,16 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     scrollToBottom()
   }, [messages, currentTranscript])
 
+  // Update last message when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setLastMessage(messages[messages.length - 1].content);
+    }
+  }, [messages]);
+
   const makeAPICall = async (answersData: typeof answers) => {
     try {
-      console.log('Making API call with data:', answersData)
+      console.log('Making API call with data:', answersData);
 
       const response = await fetch('/api/vapi/generate', {
         method: 'POST',
@@ -79,60 +88,109 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
           level: answersData.level,
           techstack: answersData.techstack,
           amount: answersData.amount,
-          userid: userId
-        })
-      })
+          userid: userId,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(`API call failed: ${response.status}`)
+        throw new Error(`API call failed: ${response.status}`);
       }
 
-      const result = await response.json()
-      console.log('API call successful:', result)
+      const result = await response.json();
+      console.log('API response:', result);
 
-      // CAPTURE THE INTERVIEW ID FROM THE RESPONSE
       if (result.success && result.interviewId) {
-        console.log('Setting interview ID:', result.interviewId)
-        setInterviewId(result.interviewId)
+        console.log('Setting interview ID:', result.interviewId);
+        setInterviewId(result.interviewId);
+        
+        if (vapiInstance) {
+          console.log('Stopping VAPI call...');
+          await vapiInstance.stop();
+        }
       } else {
-        console.error('No interview ID in response:', result)
+        console.error('API call succeeded but no interview ID in response:', result);
+        setInterviewId(null);
+        
+        if (vapiInstance) {
+          await vapiInstance.stop();
+        }
       }
-
-      if (vapiInstance) {
-        await vapiInstance.stop()
-        setCallStatus(CallStatus.FINISHED)
-      }
-
     } catch (error) {
-      console.error('API call failed:', error)
+      console.error('API call failed:', error);
+      setInterviewId(null);
+      
+      if (vapiInstance) {
+        try {
+          await vapiInstance.stop();
+        } catch (stopError) {
+          console.error('Error stopping call after API failure:', stopError);
+        }
+      }
     }
-  }
+  };
 
   const processUserAnswer = (answer: string) => {
-    if (currentQuestionIndex < QUESTION_ORDER.length) {
-      const questionKey = QUESTION_ORDER[currentQuestionIndex] as keyof typeof answers
+    console.log('Processing answer:', answer, 'Current question index:', currentQuestionIndex);
+    
+    // Use functional update to ensure we have the latest state
+    setCurrentQuestionIndex(prevIndex => {
+      console.log('Previous index:', prevIndex);
+      
+      if (prevIndex < QUESTION_ORDER.length) {
+        const questionKey = QUESTION_ORDER[prevIndex] as keyof typeof answers;
+        console.log('Setting answer for key:', questionKey, 'value:', answer);
 
-      setAnswers(prev => ({
-        ...prev,
-        [questionKey]: answer
-      }))
+        // Calculate new index here where it's in scope
+        const newQuestionIndex = prevIndex + 1;
+        console.log('New question index:', newQuestionIndex, 'Total questions:', QUESTION_ORDER.length);
 
-      setUserAnswers(prev => [...prev, answer])
-      setCurrentQuestionIndex(prev => prev + 1)
+        // Update answers
+        setAnswers(prevAnswers => {
+          const updatedAnswers = {
+            ...prevAnswers,
+            [questionKey]: answer
+          };
+          
+          console.log('Updated answers:', updatedAnswers);
+          
+          // Check if all questions are answered
+          if (newQuestionIndex >= QUESTION_ORDER.length) {
+            console.log('All questions answered! Final answers:', updatedAnswers);
+            
+            const allAnswersFilled = QUESTION_ORDER.every(key => 
+              updatedAnswers[key as keyof typeof updatedAnswers]?.trim() !== ''
+            );
+            console.log('All answers filled:', allAnswersFilled);
+            
+            if (allAnswersFilled) {
+              console.log('Making API call in 2 seconds...');
+              setTimeout(() => {
+                console.log('Executing API call now with:', updatedAnswers);
+                makeAPICall(updatedAnswers);
+              }, 2000);
+            } else {
+              console.error('Some answers are missing:', updatedAnswers);
+            }
+          }
+          
+          return updatedAnswers;
+        });
 
-      if (currentQuestionIndex + 1 >= QUESTION_ORDER.length) {
-        const finalAnswers = {
-          ...answers,
-          [questionKey]: answer
-        }
-        console.log('All questions answered:', finalAnswers)
-
-        setTimeout(() => {
-          makeAPICall(finalAnswers)
-        }, 2000)
+        // Update user answers
+        setUserAnswers(prev => [...prev, answer]);
+        
+        return newQuestionIndex;
       }
-    }
-  }
+      
+      return prevIndex;
+    });
+  };
+
+  // Handle routing to home
+  const handleRouteToHome = () => {
+    console.log('Routing to home page');
+    router.push('/');
+  };
 
   useEffect(() => {
     const initializeVapi = async () => {
@@ -146,7 +204,6 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       const instance = new Vapi(publicKey)
       setVapiInstance(instance)
 
-      // Replace your event listeners in the useEffect with these enhanced versions:
       const onCallStart = () => {
         console.log('🎉 Call started successfully - transitioning to ACTIVE state')
         setCallStatus(CallStatus.ACTIVE)
@@ -163,13 +220,15 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         setCurrentQuestionIndex(0)
         setUserAnswers([])
         setInterviewId(null)
+        redirectExecuted.current = false
       }
 
       const onCallEnd = () => {
-        console.log('Call ended')
-        setCallStatus(CallStatus.FINISHED)
-        setCurrentTranscript("")
-        setCurrentSpeaker(null)
+        console.log('Call ended - setting status to FINISHED');
+        setCallStatus(CallStatus.FINISHED);
+        setCurrentTranscript("");
+        setCurrentSpeaker(null);
+        setIsSpeaking(false);
       }
 
       const onMessage = (message: Message) => {
@@ -214,10 +273,16 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
 
       const onError = (error: Error) => {
         console.error("VAPI Error:", error)
-        setCallStatus(CallStatus.INACTIVE)
+        if (error.message.includes('ejection') || error.message.includes('Meeting has ended') || error.message.includes('call ejected')) {
+          console.log('Call ejected - setting status to EJECTED');
+          setCallStatus(CallStatus.EJECTED);
+        } else {
+          setCallStatus(CallStatus.INACTIVE);
+          alert(`VAPI Error: ${error.message || 'Unknown error occurred'}`);
+        }
         setCurrentTranscript("")
         setCurrentSpeaker(null)
-        alert(`VAPI Error: ${error.message || 'Unknown error occurred'}`)
+        setIsSpeaking(false)
       }
 
       const onCallStartProgress = (event: any) => {
@@ -226,7 +291,6 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
 
       const onCallStartSuccess = (event: any) => {
         console.log('Call start success event received:', event)
-        // Sometimes this fires instead of or before call-start
         if (callStatus === CallStatus.CONNECTING) {
           console.log('Manually transitioning to ACTIVE from success event')
           setCallStatus(CallStatus.ACTIVE)
@@ -265,64 +329,90 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     initializeVapi()
   }, [])
 
-  // You can remove this entire useEffect if using the second approach
+  // Handle redirect logic
   useEffect(() => {
-    if (callStatus === CallStatus.FINISHED) {
-      console.log('Call finished, interview ID:', interviewId)
-      setTimeout(() => {
-        if (interviewId) {
-          console.log('Navigating to interview:', `/interview/${interviewId}`)
-          router.push(`/interview/${interviewId}`)
-        } else {
-          console.log('No interview ID, redirecting to home')
-          router.push("/")
+    console.log('Redirect useEffect triggered:', { callStatus, interviewId, redirectExecuted: redirectExecuted.current });
+    
+    if (callStatus === CallStatus.FINISHED && !redirectExecuted.current) {
+      redirectExecuted.current = true;
+      
+      const performRedirect = () => {
+        try {
+          if (type === "generate") {
+            console.log('Generate type - routing to home');
+            router.push('/');
+          } else if (interviewId && typeof interviewId === 'string' && interviewId.trim() !== '') {
+            console.log('Call finished, navigating to interview:', `/interview/${interviewId}`);
+            router.push(`/interview/${interviewId}`);
+          } else {
+            console.log('No interview ID, routing to home');
+            router.push('/');
+          }
+        } catch (error) {
+          console.error('Redirect failed:', error);
+          router.push('/');
         }
-      }, 3000)
+      };
+      
+      const redirectTimer = setTimeout(performRedirect, 1000);
+      
+      return () => {
+        clearTimeout(redirectTimer);
+      };
     }
-  }, [callStatus, router, interviewId])
+  }, [callStatus, interviewId, router, type]);
 
-const handleCall = async () => {
-  const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID || "6595dd69-a7a1-4034-a926-a8d8ecb6d08a"
-  const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "fd07d3b3-0b58-4789-8120-2885e5adc4a9"
+  const handleCall = async () => {
+    const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID || "6595dd69-a7a1-4034-a926-a8d8ecb6d08a"
+    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "fd07d3b3-0b58-4789-8120-2885e5adc4a9"
 
-  console.log('Starting call with Method 2')
-  setCallStatus(CallStatus.CONNECTING)
+    console.log('Starting call with Method 2')
+    setCallStatus(CallStatus.CONNECTING)
+    redirectExecuted.current = false
 
-  try {
-    await vapi.stop()
-  } catch (error) {
-    console.log('No existing call to stop')
-  }
+    try {
+      if (vapiInstance) {
+        await vapiInstance.stop()
+      }
+    } catch (error) {
+      console.log('No existing call to stop')
+    }
 
-  try {
-    if (type === "generate") {
-      await vapi.start(undefined, undefined, undefined, workflowId, {
-        variableValues: {
-          username: userName,
-          userid: userId,
-        },
-      })
-      
+    try {
+      if (type === "generate") {
+        await vapiInstance.start(undefined, undefined, undefined, workflowId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        })
+      } else {
+        await vapiInstance.start(assistantId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        })
+      }
+
       console.log('Call initiated successfully')
-      
-      // FALLBACK: If call-start event doesn't fire, transition manually
+
+      // Fallback timeout logic
       let fallbackTimeout = setTimeout(() => {
         console.log('FALLBACK: Call-start event did not fire, checking if call is actually active...')
         if (callStatus === CallStatus.CONNECTING) {
           console.log('Manually transitioning to ACTIVE state (fallback)')
           setCallStatus(CallStatus.ACTIVE)
         }
-      }, 8000) // Wait 8 seconds then assume it's active
-      
-      // Clear the fallback if we get proper events
+      }, 8000)
+
       const clearFallback = () => {
         if (fallbackTimeout) {
           clearTimeout(fallbackTimeout)
           fallbackTimeout = null
         }
       }
-      
-      // Listen for any sign the call is active
+
       const tempListener = (message: any) => {
         if (message.type === "transcript" || message.type === "speech-start") {
           console.log('Call is definitely active (received message/speech), clearing fallback')
@@ -330,40 +420,52 @@ const handleCall = async () => {
           setCallStatus(CallStatus.ACTIVE)
         }
       }
-      
-      // Add temporary listener
-      vapi.on("message", tempListener)
-      
-      // Clean up after 30 seconds
+
+      vapiInstance.on("message", tempListener)
+
       setTimeout(() => {
-        vapi.off("message", tempListener)
+        vapiInstance.off("message", tempListener)
         clearFallback()
       }, 30000)
-      
-    } else {
-      await vapi.start(assistantId, {
-        variableValues: {
-          username: userName,
-          userid: userId,
-        },
-      })
-    }
 
-  } catch (error: any) {
-    console.error('Call failed:', error)
-    setCallStatus(CallStatus.INACTIVE)
-    alert(`Call failed: ${error.message}`)
+    } catch (error: any) {
+      console.error('Call failed:', error)
+      setCallStatus(CallStatus.INACTIVE)
+      alert(`Call failed: ${error.message}`)
+    }
   }
-}
+
   const handleDisconnect = async () => {
     if (!vapiInstance) return
     try {
       await vapiInstance.stop()
-      setCallStatus(CallStatus.FINISHED)
     } catch (error) {
+      console.error('Error disconnecting:', error)
       setCallStatus(CallStatus.INACTIVE)
     }
   }
+
+  // Function to get button text and style
+  const getButtonConfig = () => {
+    switch (callStatus) {
+      case CallStatus.INACTIVE:
+        return { text: "Call", className: "btn-call", onClick: handleCall }
+      case CallStatus.CONNECTING:
+        return { text: "Connecting...", className: "btn-call", onClick: handleCall }
+      case CallStatus.ACTIVE:
+        return { text: "End Call", className: "btn-disconnect", onClick: handleDisconnect }
+      case CallStatus.FINISHED:
+        return interviewId 
+          ? { text: "Redirecting...", className: "btn-call", onClick: () => {} }
+          : { text: "Start Call", className: "btn-start-call bg-green-500 hover:bg-green-600 text-white", onClick: handleRouteToHome }
+      case CallStatus.EJECTED:
+        return { text: "Start Call", className: "btn-start-call bg-green-500 hover:bg-green-600 text-white", onClick: handleRouteToHome }
+      default:
+        return { text: "Call", className: "btn-call", onClick: handleCall }
+    }
+  }
+
+  const buttonConfig = getButtonConfig()
 
   return (
     <>
@@ -397,58 +499,67 @@ const handleCall = async () => {
         </div>
       </div>
 
-      {callStatus === CallStatus.ACTIVE && (currentTranscript || messages.length > 0) && (
+      {/* Show transcript when call is active and there's content */}
+      {callStatus === CallStatus.ACTIVE && (currentTranscript || lastMessage) && (
         <div className="transcript-border">
-          <div className="bg-gray-800 rounded-lg p-4 mx-4 mb-4">
-            <p className="text-white text-center text-sm leading-relaxed">
+          <div className="transcript">
+            <p 
+              className={cn(
+                "transition-opacity duration-500",
+                currentTranscript ? "opacity-100" : "opacity-100 animate-fadeIn"
+              )}
+            >
               {currentTranscript ? (
                 <>
                   {currentTranscript}
                   <span className="animate-pulse ml-1">|</span>
                 </>
-              ) : messages.length > 0 ? (
-                messages[messages.length - 1].content
               ) : (
-                "Listening..."
+                lastMessage || "Listening..."
               )}
             </p>
           </div>
         </div>
       )}
 
+      {/* Development debug panel */}
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed top-4 right-4 bg-black/80 text-white p-2 rounded text-xs max-w-xs">
           <div>Status: {callStatus}</div>
           <div>Question: {currentQuestionIndex + 1}/5</div>
           <div>Interview ID: {interviewId || 'Not set'}</div>
           <div>Type: {type}</div>
+          <div>Redirect Executed: {redirectExecuted.current.toString()}</div>
           <div className="mt-2 text-xs">
             <div>Workflow ID: {process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID}</div>
             <div>Assistant ID: {process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID}</div>
           </div>
           <div className="mt-1 max-h-20 overflow-auto">
-            Answers: {JSON.stringify(answers, null, 1)}
+            <div>Current Answers:</div>
+            {QUESTION_ORDER.map((key, index) => (
+              <div key={key} className={`text-xs ${index < currentQuestionIndex ? 'text-green-400' : 'text-gray-400'}`}>
+                {key}: {answers[key as keyof typeof answers] || 'Not set'}
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 text-xs">
+            User Answers Count: {userAnswers.length}
           </div>
         </div>
       )}
 
       <div className="w-full flex justify-center">
-        {callStatus !== CallStatus.ACTIVE ? (
-          <button className="relative btn-call" onClick={handleCall}>
-            {callStatus === CallStatus.CONNECTING && (
-              <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-75"></span>
-            )}
-            <span className="relative z-10">
-              {callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED
-                ? "Call"
-                : "Connecting..."}
-            </span>
-          </button>
-        ) : (
-          <button className="btn-disconnect" onClick={handleDisconnect}>
-            End Call
-          </button>
-        )}
+        <button 
+          className={cn("relative", buttonConfig.className)}
+          onClick={buttonConfig.onClick}
+        >
+          {callStatus === CallStatus.CONNECTING && (
+            <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-75"></span>
+          )}
+          <span className="relative z-10">
+            {buttonConfig.text}
+          </span>
+        </button>
       </div>
     </>
   )
