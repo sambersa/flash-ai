@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { createFeedback } from "@/lib/actions/general.action"
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -30,12 +31,20 @@ interface AgentProps {
   userName: string
   userId: string
   type: string
+  interviewId?: string
+  questions?: string[]
 }
 
-// Define the expected order of answers
+// Define the expected order of answers (only for generation flow)
 const QUESTION_ORDER = ['intro', 'role', 'type', 'level', 'techstack', 'amount']
 
-const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
+// Skip responses for generic answers
+const skipResponses = [
+  'yes', 'no', 'okay', 'ok', 'sure', 'alright', 'right', 'correct',
+  'i understand', 'got it', 'sounds good', 'that works', 'perfect'
+]
+
+const Agent: React.FC<AgentProps> = ({ userName, userId, type, interviewId: propInterviewId, questions }) => {
   const router = useRouter()
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE)
@@ -43,11 +52,12 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const [currentTranscript, setCurrentTranscript] = useState<string>("")
   const [currentSpeaker, setCurrentSpeaker] = useState<"user" | "assistant" | null>(null)
   const [vapiInstance, setVapiInstance] = useState<any>(null)
-  const [interviewId, setInterviewId] = useState<string | null>(null)
+  const [interviewId, setInterviewId] = useState<string | null>(propInterviewId || null)
   const [lastMessage, setLastMessage] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const redirectExecuted = useRef(false)
 
+  // Generation flow state (only used when type === "generate")
   const [answers, setAnswers] = useState({
     role: "",
     type: "",
@@ -57,7 +67,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   })
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [userAnswers, setUserAnswers] = useState<string[]>([])
-  const [apiCallMade, setApiCallMade] = useState(false) // Prevent duplicate API calls
+  const [apiCallMade, setApiCallMade] = useState(false)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -74,17 +84,41 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     }
   }, [messages]);
 
+  // Handle feedback generation for interview type
+  const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+    console.log('Generating feedback for interview...');
+
+    try {
+      const { success, feedbackId: id } = await createFeedback({
+        interviewId: interviewId!,
+        userId: userId!,
+        transcript: messages,
+        feedbackId: undefined, // Let the function generate a new ID
+      });
+      
+      if (success && id) {
+        router.push(`/interview/${interviewId}/feedback`);
+      } else {
+        console.log('Error saving feedback');
+        router.push('/');
+      }
+    } catch (error) {
+      console.error('Error generating feedback:', error);
+      router.push('/');
+    }
+  }
+
+  // API call for generation flow only
   const makeAPICall = async (answersData: typeof answers) => {
-    // Prevent duplicate API calls
-    if (apiCallMade) {
-      console.log('API call already made, skipping...');
+    if (apiCallMade || type !== "generate") {
+      console.log('API call already made or not generation type, skipping...');
       return;
     }
     
     setApiCallMade(true);
     
     try {
-      console.log('🔥 EXECUTING API CALL NOW - SHOULD ONLY SEE THIS ONCE');
+      console.log('🔥 EXECUTING API CALL NOW - Making questions generation call');
       console.log('Making API call with data:', answersData);
 
       const response = await fetch('/api/vapi/generate', {
@@ -128,7 +162,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     } catch (error) {
       console.error('API call failed:', error);
       setInterviewId(null);
-      setApiCallMade(false); // Reset on error so it can be retried
+      setApiCallMade(false);
       
       if (vapiInstance) {
         try {
@@ -140,7 +174,10 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     }
   };
 
+  // Process user answer (only for generation flow)
   const processUserAnswer = (answer: string) => {
+    if (type !== "generate") return; // Only process answers for generation flow
+    
     console.log('Processing answer:', answer, 'Current question index:', currentQuestionIndex);
     
     const normalizedAnswer = answer.toLowerCase().trim();
@@ -149,7 +186,6 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       return;
     }
     
-    // Use functional update to ensure we have the latest state
     setCurrentQuestionIndex(prevIndex => {
       console.log('Previous index:', prevIndex);
       
@@ -157,11 +193,9 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         const questionKey = QUESTION_ORDER[prevIndex] as keyof typeof answers;
         console.log('Setting answer for key:', questionKey, 'value:', answer);
 
-        // Calculate new index here where it's in scope
         const newQuestionIndex = prevIndex + 1;
         console.log('New question index:', newQuestionIndex, 'Total questions:', QUESTION_ORDER.length);
 
-        // Update answers
         setAnswers(prevAnswers => {
           const updatedAnswers = {
             ...prevAnswers,
@@ -170,7 +204,6 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
           
           console.log('Updated answers:', updatedAnswers);
           
-          // Check if all questions are answered
           if (newQuestionIndex >= QUESTION_ORDER.length) {
             console.log('🎯 All questions answered! Final answers:', updatedAnswers);
             
@@ -180,20 +213,16 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
             console.log('✅ All answers filled:', allAnswersFilled);
             
             if (allAnswersFilled) {
-              console.log('🚀 Making API call in 2 seconds... (THIS SHOULD ONLY HAPPEN ONCE)');
+              console.log('🚀 Making API call in 2 seconds...');
               setTimeout(() => {
-                console.log('🔥 EXECUTING API CALL NOW - SHOULD ONLY SEE THIS ONCE');
                 makeAPICall(updatedAnswers);
               }, 2000);
-            } else {
-              console.error('Some answers are missing:', updatedAnswers);
             }
           }
           
           return updatedAnswers;
         });
 
-        // Update user answers
         setUserAnswers(prev => [...prev, answer]);
         
         return newQuestionIndex;
@@ -201,12 +230,6 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       
       return prevIndex;
     });
-  };
-
-  // Handle routing to home
-  const handleRouteToHome = () => {
-    console.log('Routing to home page');
-    router.push('/');
   };
 
   useEffect(() => {
@@ -222,22 +245,26 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       setVapiInstance(instance)
 
       const onCallStart = () => {
-        console.log('🎉 Call started successfully - transitioning to ACTIVE state')
+        console.log('🎉 Call started successfully')
         setCallStatus(CallStatus.ACTIVE)
         setMessages([])
         setCurrentTranscript("")
         setCurrentSpeaker(null)
-        setAnswers({
-          role: "",
-          type: "",
-          level: "",
-          techstack: "",
-          amount: ""
-        })
-        setCurrentQuestionIndex(0)
-        setUserAnswers([])
-        setApiCallMade(false) // Reset API call flag
-        setInterviewId(null)
+        
+        // Only reset generation state if this is a generation call
+        if (type === "generate") {
+          setAnswers({
+            role: "",
+            type: "",
+            level: "",
+            techstack: "",
+            amount: ""
+          })
+          setCurrentQuestionIndex(0)
+          setUserAnswers([])
+          setApiCallMade(false)
+          setInterviewId(null)
+        }
         redirectExecuted.current = false
       }
 
@@ -271,9 +298,13 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
             setCurrentTranscript("")
             setCurrentSpeaker(null)
 
-            if (message.role === "user" && message.transcript) {
-              console.log('Processing user answer:', message.transcript)
+            // Only process answers for generation flow
+            if (message.role === "user" && message.transcript && type === "generate") {
+              console.log('User message received for generation:', message.transcript)
               processUserAnswer(message.transcript)
+            } else if (message.role === "user" && message.transcript && type === "interview") {
+              console.log('User message received for interview:', message.transcript)
+              // Just log the conversation - no processing needed for interviews
             }
           }
         }
@@ -303,33 +334,13 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         setIsSpeaking(false)
       }
 
-      const onCallStartProgress = (event: any) => {
-        console.log('Call progress:', event.stage, event.status)
-      }
-
-      const onCallStartSuccess = (event: any) => {
-        console.log('Call start success event received:', event)
-        if (callStatus === CallStatus.CONNECTING) {
-          console.log('Manually transitioning to ACTIVE from success event')
-          setCallStatus(CallStatus.ACTIVE)
-        }
-      }
-
-      const onCallStartFailed = (event: any) => {
-        console.error('Call start failed:', event)
-        setCallStatus(CallStatus.INACTIVE)
-        alert(`Call failed: ${event.error?.message || 'Unknown error'}`)
-      }
-
+      // Event listeners
       instance.on("call-start", onCallStart)
       instance.on("call-end", onCallEnd)
       instance.on("message", onMessage)
       instance.on("speech-start", onSpeechStart)
       instance.on("speech-end", onSpeechEnd)
       instance.on("error", onError)
-      instance.on("call-start-progress", onCallStartProgress)
-      instance.on("call-start-success", onCallStartSuccess)
-      instance.on("call-start-failed", onCallStartFailed)
 
       return () => {
         instance.off("call-start", onCallStart)
@@ -338,53 +349,34 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         instance.off("speech-start", onSpeechStart)
         instance.off("speech-end", onSpeechEnd)
         instance.off("error", onError)
-        instance.off("call-start-progress", onCallStartProgress)
-        instance.off("call-start-success", onCallStartSuccess)
-        instance.off("call-start-failed", onCallStartFailed)
       }
     }
 
     initializeVapi()
-  }, [])
+  }, [type]) // Add type as dependency
 
-  // Handle redirect logic
+  // Handle call finished - different logic for generation vs interview
   useEffect(() => {
-    console.log('Redirect useEffect triggered:', { callStatus, interviewId, redirectExecuted: redirectExecuted.current });
-    
     if (callStatus === CallStatus.FINISHED && !redirectExecuted.current) {
       redirectExecuted.current = true;
       
-      const performRedirect = () => {
-        try {
-          if (type === "generate") {
-            console.log('Generate type - routing to home');
-            router.push('/');
-          } else if (interviewId && typeof interviewId === 'string' && interviewId.trim() !== '') {
-            console.log('Call finished, navigating to interview:', `/interview/${interviewId}`);
-            router.push(`/interview/${interviewId}`);
-          } else {
-            console.log('No interview ID, routing to home');
-            router.push('/');
-          }
-        } catch (error) {
-          console.error('Redirect failed:', error);
+      if (type === 'generate') {
+        console.log('Generate type finished - routing to home or interview page');
+        // If we have an interviewId from the generation, go to that interview
+        if (interviewId) {
+          router.push(`/interview/${interviewId}`);
+        } else {
           router.push('/');
         }
-      };
-      
-      const redirectTimer = setTimeout(performRedirect, 1000);
-      
-      return () => {
-        clearTimeout(redirectTimer);
-      };
+      } else if (type === 'interview') {
+        console.log('Interview type finished - generating feedback');
+        handleGenerateFeedback(messages);
+      }
     }
-  }, [callStatus, interviewId, router, type]);
+  }, [messages, callStatus, type, userId, interviewId, router]);
 
   const handleCall = async () => {
-    const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID || "6595dd69-a7a1-4034-a926-a8d8ecb6d08a"
-    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "fd07d3b3-0b58-4789-8120-2885e5adc4a9"
-
-    console.log('Starting call with Method 2')
+    console.log('Starting call with type:', type, 'Questions:', questions)
     setCallStatus(CallStatus.CONNECTING)
     redirectExecuted.current = false
 
@@ -398,15 +390,31 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
 
     try {
       if (type === "generate") {
-        await vapiInstance.start(undefined, undefined, undefined, workflowId, {
+        // Generation call - uses workflow to collect role, type, level, etc.
+        const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!
+        console.log('GENERATE CALL - Using workflow:', workflowId)
+        
+        await vapiInstance.start(workflowId, {
           variableValues: {
             username: userName,
             userid: userId,
           },
         })
       } else {
+        // Interview call - uses assistant with the generated questions
+        const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID!
+        
+        let formattedQuestions = '';
+        if (questions && questions.length > 0) {
+          formattedQuestions = questions.map((question) => `- ${question}`).join('\n');
+        }
+        
+        console.log('INTERVIEW CALL - Using assistant:', assistantId)
+        console.log('Generated questions being passed:', formattedQuestions)
+        
         await vapiInstance.start(assistantId, {
           variableValues: {
+            questions: formattedQuestions,
             username: userName,
             userid: userId,
           },
@@ -414,37 +422,6 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       }
 
       console.log('Call initiated successfully')
-
-      // Fallback timeout logic
-      let fallbackTimeout = setTimeout(() => {
-        console.log('FALLBACK: Call-start event did not fire, checking if call is actually active...')
-        if (callStatus === CallStatus.CONNECTING) {
-          console.log('Manually transitioning to ACTIVE state (fallback)')
-          setCallStatus(CallStatus.ACTIVE)
-        }
-      }, 8000)
-
-      const clearFallback = () => {
-        if (fallbackTimeout) {
-          clearTimeout(fallbackTimeout)
-          fallbackTimeout = null
-        }
-      }
-
-      const tempListener = (message: any) => {
-        if (message.type === "transcript" || message.type === "speech-start") {
-          console.log('Call is definitely active (received message/speech), clearing fallback')
-          clearFallback()
-          setCallStatus(CallStatus.ACTIVE)
-        }
-      }
-
-      vapiInstance.on("message", tempListener)
-
-      setTimeout(() => {
-        vapiInstance.off("message", tempListener)
-        clearFallback()
-      }, 30000)
 
     } catch (error: any) {
       console.error('Call failed:', error)
@@ -473,11 +450,9 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       case CallStatus.ACTIVE:
         return { text: "End Call", className: "btn-disconnect", onClick: handleDisconnect }
       case CallStatus.FINISHED:
-        return interviewId 
-          ? { text: "Redirecting...", className: "btn-call", onClick: () => {} }
-          : { text: "Start Call", className: "btn-start-call bg-green-500 hover:bg-green-600 text-white", onClick: handleRouteToHome }
+        return { text: "Redirecting...", className: "btn-call", onClick: () => {} }
       case CallStatus.EJECTED:
-        return { text: "Start Call", className: "btn-start-call bg-green-500 hover:bg-green-600 text-white", onClick: handleRouteToHome }
+        return { text: "Start Call", className: "btn-start-call bg-green-500 hover:bg-green-600 text-white", onClick: handleCall }
       default:
         return { text: "Call", className: "btn-call", onClick: handleCall }
     }
@@ -544,26 +519,35 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed top-4 right-4 bg-black/80 text-white p-2 rounded text-xs max-w-xs">
           <div>Status: {callStatus}</div>
-          <div>Question: {currentQuestionIndex + 1}/5</div>
-          <div>Interview ID: {interviewId || 'Not set'}</div>
           <div>Type: {type}</div>
+          <div>Interview ID: {interviewId || 'Not set'}</div>
+          <div>Questions: {questions?.length || 0}</div>
           <div>Redirect Executed: {redirectExecuted.current.toString()}</div>
-          <div>API Call Made: {apiCallMade.toString()}</div>
-          <div className="mt-2 text-xs">
-            <div>Workflow ID: {process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID}</div>
-            <div>Assistant ID: {process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID}</div>
-          </div>
-          <div className="mt-1 max-h-20 overflow-auto">
-            <div>Current Answers:</div>
-            {QUESTION_ORDER.map((key, index) => (
-              <div key={key} className={`text-xs ${index < currentQuestionIndex ? 'text-green-400' : 'text-gray-400'}`}>
-                {key}: {answers[key as keyof typeof answers] || 'Not set'}
+          {type === "generate" && (
+            <>
+              <div>Question: {currentQuestionIndex + 1}/5</div>
+              <div>API Call Made: {apiCallMade.toString()}</div>
+              <div className="mt-1 max-h-20 overflow-auto">
+                <div>Current Answers:</div>
+                {QUESTION_ORDER.map((key, index) => (
+                  <div key={key} className={`text-xs ${index < currentQuestionIndex ? 'text-green-400' : 'text-gray-400'}`}>
+                    {key}: {answers[key as keyof typeof answers] || 'Not set'}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="mt-1 text-xs">
-            User Answers Count: {userAnswers.length}
-          </div>
+            </>
+          )}
+          {type === "interview" && questions && (
+            <div className="mt-1 text-xs max-h-20 overflow-auto">
+              <div>Interview Questions:</div>
+              {questions.slice(0, 3).map((q, i) => (
+                <div key={i} className="text-xs text-blue-400">
+                  {i + 1}. {q.substring(0, 30)}...
+                </div>
+              ))}
+              {questions.length > 3 && <div className="text-xs">...and {questions.length - 3} more</div>}
+            </div>
+          )}
         </div>
       )}
 

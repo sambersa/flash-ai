@@ -17,11 +17,14 @@ const normalizeTechName = (tech: string) => {
 export const getTechLogos = (techArray: string[]) => {
   return techArray.map((tech) => {
     const normalized = normalizeTechName(tech);
+    const iconUrl = normalized 
+      ? `${techIconBaseURL}/${normalized}/${normalized}-original.svg`
+      : "/tech.svg";
+    
     return {
       tech,
-      url: normalized 
-        ? `${techIconBaseURL}/${normalized}/${normalized}-original.svg`
-        : "/tech.svg",
+      url: iconUrl,
+      fallback: "/tech.svg" // Add this for Image component fallback
     };
   });
 };
@@ -57,5 +60,5 @@ export const getTechLogosWithCheck = async (techArray: string[]) => {
 
 export const getRandomInterviewCover = () => {
   const randomIndex = Math.floor(Math.random() * interviewCovers.length);
-  return `/covers${interviewCovers[randomIndex]}`;
+  return interviewCovers[randomIndex];
 };
