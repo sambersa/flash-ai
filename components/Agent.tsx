@@ -33,7 +33,7 @@ interface AgentProps {
 }
 
 // Define the expected order of answers
-const QUESTION_ORDER = ['role', 'type', 'level', 'techstack', 'amount']
+const QUESTION_ORDER = ['intro', 'role', 'type', 'level', 'techstack', 'amount']
 
 const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   const router = useRouter()
@@ -57,6 +57,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   })
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [userAnswers, setUserAnswers] = useState<string[]>([])
+  const [apiCallMade, setApiCallMade] = useState(false) // Prevent duplicate API calls
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -74,7 +75,16 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
   }, [messages]);
 
   const makeAPICall = async (answersData: typeof answers) => {
+    // Prevent duplicate API calls
+    if (apiCallMade) {
+      console.log('API call already made, skipping...');
+      return;
+    }
+    
+    setApiCallMade(true);
+    
     try {
+      console.log('🔥 EXECUTING API CALL NOW - SHOULD ONLY SEE THIS ONCE');
       console.log('Making API call with data:', answersData);
 
       const response = await fetch('/api/vapi/generate', {
@@ -118,6 +128,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
     } catch (error) {
       console.error('API call failed:', error);
       setInterviewId(null);
+      setApiCallMade(false); // Reset on error so it can be retried
       
       if (vapiInstance) {
         try {
@@ -131,6 +142,12 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
 
   const processUserAnswer = (answer: string) => {
     console.log('Processing answer:', answer, 'Current question index:', currentQuestionIndex);
+    
+    const normalizedAnswer = answer.toLowerCase().trim();
+    if (skipResponses.some(skip => normalizedAnswer.includes(skip)) && normalizedAnswer.length < 20) {
+      console.log('Skipping generic response:', answer);
+      return;
+    }
     
     // Use functional update to ensure we have the latest state
     setCurrentQuestionIndex(prevIndex => {
@@ -155,17 +172,17 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
           
           // Check if all questions are answered
           if (newQuestionIndex >= QUESTION_ORDER.length) {
-            console.log('All questions answered! Final answers:', updatedAnswers);
+            console.log('🎯 All questions answered! Final answers:', updatedAnswers);
             
             const allAnswersFilled = QUESTION_ORDER.every(key => 
               updatedAnswers[key as keyof typeof updatedAnswers]?.trim() !== ''
             );
-            console.log('All answers filled:', allAnswersFilled);
+            console.log('✅ All answers filled:', allAnswersFilled);
             
             if (allAnswersFilled) {
-              console.log('Making API call in 2 seconds...');
+              console.log('🚀 Making API call in 2 seconds... (THIS SHOULD ONLY HAPPEN ONCE)');
               setTimeout(() => {
-                console.log('Executing API call now with:', updatedAnswers);
+                console.log('🔥 EXECUTING API CALL NOW - SHOULD ONLY SEE THIS ONCE');
                 makeAPICall(updatedAnswers);
               }, 2000);
             } else {
@@ -219,6 +236,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
         })
         setCurrentQuestionIndex(0)
         setUserAnswers([])
+        setApiCallMade(false) // Reset API call flag
         setInterviewId(null)
         redirectExecuted.current = false
       }
@@ -530,6 +548,7 @@ const Agent: React.FC<AgentProps> = ({ userName, userId, type }) => {
           <div>Interview ID: {interviewId || 'Not set'}</div>
           <div>Type: {type}</div>
           <div>Redirect Executed: {redirectExecuted.current.toString()}</div>
+          <div>API Call Made: {apiCallMade.toString()}</div>
           <div className="mt-2 text-xs">
             <div>Workflow ID: {process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID}</div>
             <div>Assistant ID: {process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID}</div>

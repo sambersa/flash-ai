@@ -61,6 +61,8 @@ Thank you! <3`,
             if (!Array.isArray(parsedQuestions)) parsedQuestions = [];
         } catch (err) {
             console.error("Failed to parse AI questions:", questions, err);
+            // If parsing fails, return empty array to prevent crash
+            parsedQuestions = [];
         }
 
         const interview: any = {
@@ -80,10 +82,8 @@ Thank you! <3`,
 
         console.log("Interview object to save:", interview);
 
-        // THIS IS THE CRITICAL FIX - Save to database and get the document reference
+        // Save to database ONCE and return the result
         const docRef = await db.collection("interviews").add(interview);
-        return Response.json({ success: true, interviewId: docRef.id }, { status: 200 });
-
         console.log("Interview saved with ID:", docRef.id);
 
         // Return the interview ID in the response
