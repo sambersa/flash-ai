@@ -8,6 +8,8 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)
 
 🚀 Features
+
+
 ✨ Core Functionality
 
 🎤 AI Voice Interviews – Real-time voice conversations with AI interviewers
@@ -24,6 +26,8 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 
 📱 Responsive Design – Works seamlessly across all devices
 
+
+
 🎨 Visual Features
 
 🖌️ Modern UI – Clean, intuitive interface with Tailwind CSS
@@ -38,6 +42,8 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 
 🔔 Toast Notifications – Friendly user feedback with Sonner
 
+
+
 🤖 AI Features
 
 🎙️ Voice Recognition – Real-time speech-to-text with Deepgram
@@ -49,6 +55,8 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 📝 Automatic Feedback – AI-generated interview assessments
 
 🔄 Real-time Processing – Instant response for seamless conversation
+
+
 
 🛠️ Technical Features
 
@@ -63,6 +71,8 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 ⚡ Turbopack – Lightning-fast builds
 
 🔍 TypeScript – Full type safety
+
+
 
 🛠️ Tech Stack
 Frontend
@@ -91,6 +101,8 @@ Frontend
 
 📅 Day.js – Date manipulation
 
+
+
 AI & Voice
 
 🤖 VAPI AI SDK – Voice AI integration
@@ -103,6 +115,8 @@ AI & Voice
 
 🔧 AI SDK – AI utilities
 
+
+
 Backend & Database
 
 🔥 Firebase – Backend-as-a-Service
@@ -112,6 +126,8 @@ Backend & Database
 🗄️ Firebase Firestore – NoSQL DB
 
 👨‍💻 Firebase Admin – Server SDK
+
+
 
 Development Tools
 
