@@ -93,28 +93,167 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 
 ---
 
-🚀 Getting Started
+Flash Interviewer AI
+This is a solid AI interview prep tool with voice, feedback, and tracking to level up your tech game.
+🚀 Get Started
+What You Need
 
-Prerequisites
+Node.js (v18+)
+npm or Yarn
+Firebase project for auth and backend
+VAPI AI account for voice
+OpenAI API key for questions and feedback
 
-
-
-
-
-Node.js: Version 18 or higher
-
-
-
-npm or Yarn: Package manager for dependencies
-
+Installation
 
 
-Firebase: Project setup for authentication and backend services
+Clone the repo: git clone https://github.com/yourusername/flash-interviewer-ai.git
 
 
-
-VAPI AI Account: For voice AI capabilities
-
+Move in: cd flash-interviewer-ai
 
 
-OpenAI API Key: For AI-powered question genera
+Install dependencies: npm install
+
+
+Set up .env.local in the root with:
+Firebase Config
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+Firebase Admin
+FIREBASE_ADMIN_PROJECT_ID=your_firebase_project_id
+FIREBASE_ADMIN_PRIVATE_KEY=your_firebase_private_key
+FIREBASE_ADMIN_CLIENT_EMAIL=your_firebase_client_email
+VAPI AI
+VAPI_API_KEY=your_vapi_api_key
+OpenAI
+OPENAI_API_KEY=your_openai_api_key
+
+
+Start the dev server: npm run dev
+
+
+Check it: http://localhost:3000
+
+
+📱 Key Components
+AI & Voice
+
+Agent: AI interviewer with voice
+InterviewCard: Shows interview sessions with small round tech stack icons
+DisplayTechIcons: Displays tech stacks visually
+
+Auth Components
+
+AuthForm: Sign-in/sign-up form
+FormField: Reusable input
+
+UI Components
+
+shadcn/ui: Accessible components
+Button: Custom buttons
+Input: Styled inputs
+Label: Accessible labels
+Form: Forms with validation
+Sonner: Toast notifications
+
+🔒 Security
+
+Firebase Auth: Secure user login
+Env Vars: Protected API keys
+TypeScript: Type safety
+Zod Validation: Input checks
+CORS Protection: Blocks shady requests
+
+📱 Responsive
+Works on:
+
+Phones
+Tablets
+Desktops
+Large screens
+
+🚀 Deployment
+Vercel
+
+Push to GitHub
+Link to Vercel
+Add env vars in Vercel
+Deploy
+
+Manual
+Build
+npm run build
+Run
+npm start
+🔌 API Endpoints
+Auth
+
+POST /api/auth/signup: New user
+POST /api/auth/signin: Log in
+
+Interview Management
+
+GET /api/interviews: List interviews
+POST /api/interviews: Start new
+GET /api/interviews/[id]: View specific
+PUT /api/interviews/[id]: Update
+
+Feedback System
+
+POST /api/feedback: AI feedback
+GET /api/feedback/[id]: Feedback details
+
+AI Integration
+
+POST /api/vapi/generate: Generate questions
+
+🎨 Key Features
+AI Voice Interviews
+
+Real-time voice with AI
+Natural convo
+Pro interview sim
+
+Custom Interview Generation
+
+Role-based (Frontend, Backend, Full Stack)
+Level targeting (Junior, Mid, Senior)
+Tech-specific questions
+
+Comprehensive Feedback
+
+Communication Skills: Clarity and engagement
+Technical Knowledge: Expertise
+Problem Solving: Analytical thinking
+Cultural Fit: Team compatibility
+Confidence: Presentation
+
+Progress Tracking
+
+Interview history
+Score trends
+Growth tips
+
+🤝 Contributing
+
+Fork the repo
+Create branch: git checkout -b feature/AmazingFeature
+Commit: git commit -m 'Add AmazingFeature'
+Push: git push origin feature/AmazingFeature
+Open PR
+
+🙏 Shoutouts
+
+VAPI AI: Voice tech
+OpenAI: GPT-4
+Firebase: Backend
+Next.js: Framework
+Tailwind CSS: Styling
+shadcn/ui: Components
+
+Ready to crush your next interview? Dive into Flash Interviewer AI!
