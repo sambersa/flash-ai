@@ -1,4 +1,4 @@
-# 🎤 Flash Interviewer AI - AI-Powered Interview Practice Platform
+<img width="1897" height="916" alt="image" src="https://github.com/user-attachments/assets/961722da-2ace-4a32-beb2-cc80e378aa41" /><img width="1893" height="921" alt="image" src="https://github.com/user-attachments/assets/3fddc7af-3195-4455-9374-be18fa724590" /># 🎤 Flash Interviewer AI - AI-Powered Interview Practice Platform
 
 A cutting-edge, full-stack interview practice application built with Next.js and AI technology that helps users master job interviews through realistic AI-powered voice simulations with comprehensive feedback and progress tracking.
 
@@ -139,6 +139,20 @@ Development Tools
 📦 npm – Package manager
 
 🎯 TypeScript – Type checking
+
+## 📸 Screenshots  
+
+### 🔐 Authentication  
+![Login Page](https://i.gyazo.com/c9784f204ded97ec561d00fc49df2990.jpg)  
+![Sign up Page](https://i.gyazo.com/bca47cbc60bfc49be4e04f384f975c62.jpg)
+
+### 🎤 AI Interview  
+![Interview Session](https://i.gyazo.com/bc725676a42913bc9a84d6e3464a982a.jpg)
+
+### 🎤 AI Interview Stage 2
+![Interview Session 2](https://i.gyazo.com/215e123087c3cb7fa93b9b6f3298a480.jpg)
+
+
 
 ## 🚀 Getting Started
 
