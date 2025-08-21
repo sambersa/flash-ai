@@ -28,6 +28,7 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 
 
 
+
 🎨 Visual Features
 
 🖌️ Modern UI – Clean, intuitive interface with Tailwind CSS
