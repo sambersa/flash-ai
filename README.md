@@ -7,74 +7,121 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)
 
-## 🚀 Features
+🚀 Features
+✨ Core Functionality
 
-### ✨ Core Functionality
-🎤 **AI Voice Interviews** - Real-time voice conversations with AI interviewers
-�� **Custom Interview Generation** - Personalized interviews based on role, level, and tech stack
-📊 **Comprehensive Feedback** - Detailed scoring across multiple categories
-📈 **Progress Tracking** - Monitor your interview performance over time
-👤 **User Authentication** - Secure login/signup with Firebase Auth
-🖼️ **Profile Management** - User profile and interview history
-📱 **Responsive Design** - Works seamlessly on all devices
+🎤 AI Voice Interviews – Real-time voice conversations with AI interviewers
 
-### �� Visual Features
-🎨 **Modern UI** - Clean, intuitive interface with Tailwind CSS
-�� **Company Branding** - Interview covers with popular company logos
-�� **Tech Stack Icons** - Visual representation of technologies
-📊 **Interview Cards** - Beautiful display of interview sessions
-🌙 **Dark/Light Mode** - Theme support with next-themes
-🔔 **Toast Notifications** - User-friendly feedback with Sonner
+🛠️ Custom Interview Generation – Personalized by role, level, and tech stack
 
-### �� AI Features
-🎙️ **Voice Recognition** - Real-time speech-to-text with Deepgram
-🗣️ **AI Voice Synthesis** - Natural-sounding interviewer with 11Labs
-🧠 **GPT-4 Integration** - Advanced AI for intelligent conversations
-📝 **Automatic Feedback** - AI-generated comprehensive assessments
-🔄 **Real-time Processing** - Instant voice interaction and response
+📊 Comprehensive Feedback – Detailed scoring across multiple categories
 
-### 🛠️ Technical Features
-🔐 **Firebase Authentication** - Secure user management
-🗄️ **Firebase Database** - Real-time data synchronization
-🎯 **VAPI AI SDK** - Voice AI integration
-📱 **PWA Ready** - Progressive Web App capabilities
-⚡ **Turbopack** - Fast development and build times
-🔍 **TypeScript** - Type-safe development experience
+📈 Progress Tracking – Monitor interview performance over time
 
-## 🛠️ Tech Stack
+👤 User Authentication – Secure login/signup with Firebase Auth
 
-### Frontend
-⚛️ **Next.js 15.4.6** - Full-stack React framework
-�� **React 18.3.1** - Modern UI library
-�� **Tailwind CSS 4.0** - Utility-first CSS framework
-�� **TypeScript 5.0** - Type-safe JavaScript
-🎭 **shadcn/ui** - Beautiful, accessible component library
-🎨 **Radix UI** - Accessible component primitives
-�� **Lucide React** - Beautiful icon library
-🌙 **Next Themes** - Dark/light mode support
-�� **Sonner** - Toast notifications
-📝 **React Hook Form** - Form management
-✅ **Zod** - Schema validation
-📅 **Day.js** - Date manipulation
+🖼️ Profile Management – Profile editing & interview history
 
-### AI & Voice
-🤖 **VAPI AI SDK** - Voice AI platform integration
-🎙️ **Deepgram** - Speech-to-text transcription
-🗣️ **11Labs** - AI voice synthesis
-�� **OpenAI GPT-4** - Advanced language model
-🔧 **AI SDK** - AI integration utilities
+📱 Responsive Design – Works seamlessly across all devices
 
-### Backend & Database
-🔥 **Firebase** - Backend-as-a-Service
-🔐 **Firebase Auth** - User authentication
-🗄️ **Firebase Firestore** - NoSQL database
-👨‍�� **Firebase Admin** - Server-side Firebase SDK
+🎨 Visual Features
 
-### Development Tools
-🔍 **ESLint** - Code linting
-⚡ **Turbopack** - Fast bundler
-📦 **npm** - Package management
-🎯 **TypeScript** - Type checking
+🖌️ Modern UI – Clean, intuitive interface with Tailwind CSS
+
+🏢 Company Branding – Covers with popular company logos
+
+⚙️ Tech Stack Icons – Visual representation of technologies
+
+📋 Interview Cards – Beautiful display of past interview sessions
+
+🌙 Dark/Light Mode – Theme support with Next Themes
+
+🔔 Toast Notifications – Friendly user feedback with Sonner
+
+🤖 AI Features
+
+🎙️ Voice Recognition – Real-time speech-to-text with Deepgram
+
+🗣️ AI Voice Synthesis – Natural-sounding voices with 11Labs
+
+🧠 GPT-4 Integration – Smart, context-aware interview conversations
+
+📝 Automatic Feedback – AI-generated interview assessments
+
+🔄 Real-time Processing – Instant response for seamless conversation
+
+🛠️ Technical Features
+
+🔐 Firebase Authentication – Secure user accounts
+
+🗄️ Firestore Database – Real-time NoSQL data sync
+
+🎯 VAPI AI SDK – Voice AI integration
+
+📱 PWA Ready – Installable on desktop & mobile
+
+⚡ Turbopack – Lightning-fast builds
+
+🔍 TypeScript – Full type safety
+
+🛠️ Tech Stack
+Frontend
+
+⚛️ Next.js 15.4.6 – Full-stack React framework
+
+⚛️ React 18.3.1 – Modern UI library
+
+🎨 Tailwind CSS 4.0 – Utility-first CSS
+
+📘 TypeScript 5.0 – Type-safe development
+
+🎭 shadcn/ui – Beautiful, accessible components
+
+🎨 Radix UI – Accessible primitives
+
+🔗 Lucide React – Icon set
+
+🌙 Next Themes – Dark/light mode
+
+🔔 Sonner – Toast notifications
+
+📝 React Hook Form – Form management
+
+✅ Zod – Schema validation
+
+📅 Day.js – Date manipulation
+
+AI & Voice
+
+🤖 VAPI AI SDK – Voice AI integration
+
+🎙️ Deepgram – Speech-to-text
+
+🗣️ 11Labs – Voice synthesis
+
+🧠 OpenAI GPT-4 – AI-powered interviewer
+
+🔧 AI SDK – AI utilities
+
+Backend & Database
+
+🔥 Firebase – Backend-as-a-Service
+
+🔐 Firebase Auth – Authentication
+
+🗄️ Firebase Firestore – NoSQL DB
+
+👨‍💻 Firebase Admin – Server SDK
+
+Development Tools
+
+🔍 ESLint – Linting
+
+⚡ Turbopack – Fast bundler
+
+📦 npm – Package manager
+
+🎯 TypeScript – Type checking
 
 ## 🚀 Getting Started
 
