@@ -93,206 +93,28 @@ A cutting-edge, full-stack interview practice application built with Next.js and
 
 ---
 
-## 🚀 Getting Started  
+🚀 Getting Started
 
-### Prerequisites  
-- Node.js (v18 or higher)  
-- npm or yarn  
-- Firebase project setup  
-- VAPI AI account  
-- OpenAI API key  
+Prerequisites
 
-### Installation  
 
-1. **Clone the repository**  
-```bash
-git clone https://github.com/yourusername/flash-interviewer-ai.git
-cd flash-interviewer-ai
-Install dependencies
 
-bash
-Copy
-Edit
-npm install
-Environment Setup
-Create .env.local file in the root directory:
 
-env
-Copy
-Edit
-# Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
 
-# Firebase Admin
-FIREBASE_ADMIN_PROJECT_ID=your_firebase_project_id
-FIREBASE_ADMIN_PRIVATE_KEY=your_firebase_private_key
-FIREBASE_ADMIN_CLIENT_EMAIL=your_firebase_client_email
+Node.js: Version 18 or higher
 
-# VAPI AI
-VAPI_API_KEY=your_vapi_api_key
 
-# OpenAI
-OPENAI_API_KEY=your_openai_api_key
-Start the development server
 
-bash
-Copy
-Edit
-npm run dev
-Access the application
+npm or Yarn: Package manager for dependencies
 
-Frontend: http://localhost:3000
 
-📱 Key Components
-AI & Voice Components
-Agent - Main AI interviewer component with voice integration
 
-InterviewCard - Display component for interview sessions
+Firebase: Project setup for authentication and backend services
 
-DisplayTechIcons - Visual tech stack representation
 
-Authentication Components
-AuthForm - Sign-in/sign-up form component
 
-FormField - Reusable form input component
+VAPI AI Account: For voice AI capabilities
 
-UI Components
-shadcn/ui - Beautiful, accessible component library
 
-Button - Custom button component with variants
 
-Input - Styled input component
-
-Label - Accessible label component
-
-Form - Form components with validation
-
-Sonner - Toast notification system
-
-🔒 Security Features
-Firebase Authentication - Secure user authentication
-
-Environment Variables - Secure API key management
-
-TypeScript - Type safety and error prevention
-
-Input Validation - Zod schema validation
-
-CORS Protection - Cross-origin request handling
-
-📱 Responsive Design
-The application is fully responsive and works seamlessly on:
-
-📱 Mobile devices
-
-💻 Tablets
-
-🖥️ Desktop computers
-
-🖼️ Large screens
-
-🚀 Deployment
-Vercel Deployment (Recommended)
-Push your code to GitHub
-
-Connect your repository to Vercel
-
-Add environment variables in Vercel dashboard
-
-Deploy automatically
-
-Manual Deployment
-bash
-Copy
-Edit
-# Build the application
-npm run build
-
-# Start production server
-npm start
-🔌 API Endpoints
-Authentication
-POST /api/auth/signup - User registration
-
-POST /api/auth/signin - User login
-
-Interview Management
-GET /api/interviews - Get user's interviews
-
-POST /api/interviews - Create new interview
-
-GET /api/interviews/[id] - Get specific interview
-
-PUT /api/interviews/[id] - Update interview
-
-Feedback System
-POST /api/feedback - Generate AI feedback
-
-GET /api/feedback/[id] - Get feedback details
-
-AI Integration
-POST /api/vapi/generate - Generate interview questions
-
-🎨 Key Features Explained
-AI Voice Interviews
-Real-time voice conversation with AI interviewer
-
-Natural language processing for contextual responses
-
-Professional interview simulation with structured questions
-
-Custom Interview Generation
-Role-based interview customization (Frontend, Backend, Full Stack)
-
-Experience level targeting (Junior, Mid, Senior)
-
-Tech stack-specific questions and scenarios
-
-Comprehensive Feedback System
-Communication Skills - Clarity, articulation, and engagement
-
-Technical Knowledge - Subject matter expertise
-
-Problem Solving - Analytical thinking and solution approach
-
-Cultural Fit - Team compatibility and values alignment
-
-Confidence and Clarity - Self-assurance and presentation
-
-Progress Tracking
-Interview history and performance metrics
-
-Score trends and improvement areas
-
-Personalized recommendations for growth
-
-🤝 Contributing
-Fork the repository
-
-Create your feature branch (git checkout -b feature/AmazingFeature)
-
-Commit your changes (git commit -m 'Add some AmazingFeature')
-
-Push to the branch (git push origin feature/AmazingFeature)
-
-Open a Pull Request
-
-🙏 Acknowledgments
-VAPI AI for voice AI capabilities
-
-OpenAI for GPT-4 integration
-
-Firebase for backend services
-
-Next.js for the amazing framework
-
-Tailwind CSS for the beautiful styling
-
-shadcn/ui for the beautiful component library
-
-Ready to ace your next interview? Start practicing with Flash Interviewer AI today! 🚀
+OpenAI API Key: For AI-powered question genera
