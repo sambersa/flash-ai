@@ -282,7 +282,7 @@ Growth tips 🌱
 
 🤝 Contributing 🙌
 
-1. Fork the repo 🍴
+1. Fork the repo 🍴d
 
 2. Create a branch:
 git checkout -b feature/AmazingFeature
